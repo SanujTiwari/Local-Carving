@@ -1,0 +1,325 @@
+# LocalCarving AI Test Questions (When API is Working)
+
+## General Questions About LocalCarving
+
+### Platform Overview
+- What is LocalCarving?
+- How does LocalCarving work?
+- Tell me about LocalCarving's services
+- What makes LocalCarving different from other food delivery apps?
+- How long has LocalCarving been operating?
+
+### Food and Cuisine
+- What types of cuisine are available on LocalCarving?
+- Do you have any vegetarian restaurants?
+- Are there vegan options available?
+- Do you offer gluten-free food options?
+- What's the best restaurant for Italian food?
+- Can I find healthy food options on LocalCarving?
+- Do you have any organic food restaurants?
+- What's the most popular cuisine on LocalCarving?
+- Are there any farm-to-table restaurants on the platform?
+- Do you offer international cuisine options?
+
+### Restaurant Information
+- How many restaurants are on LocalCarving?
+- How do restaurants get listed on LocalCarving?
+- What criteria do restaurants need to meet to join LocalCarving?
+- How are restaurants rated on LocalCarving?
+- Can I see restaurant menus before ordering?
+- Do restaurants offer special deals on LocalCarving?
+- How often do restaurants update their menus?
+- Can I see restaurant photos on LocalCarving?
+- Do restaurants offer catering services through LocalCarving?
+- How can I find new restaurants on LocalCarving?
+
+### Ordering Process
+- How do I place an order on LocalCarving?
+- Can I customize my order?
+- How do I add special instructions to my order?
+- Can I schedule orders for later?
+- How do I add items to my cart?
+- Can I save my favorite orders?
+- How do I apply promo codes?
+- What happens if a restaurant is out of an item I ordered?
+- Can I split payment with friends?
+- How do I reorder from a previous order?
+
+### Delivery and Timing
+- How long does delivery usually take?
+- Is there a minimum order amount?
+- Do you deliver to my area?
+- What are the delivery fees?
+- Can I track my delivery in real-time?
+- What happens if my delivery is late?
+- Do you offer express delivery?
+- Can I choose a specific delivery time?
+- What happens if I'm not home when the delivery arrives?
+- Do you deliver during holidays?
+
+### Payment and Pricing
+- What payment methods does LocalCarving accept?
+- Is it safe to pay through LocalCarving?
+- Do you store my payment information?
+- Are there any hidden fees?
+- How do I get a refund?
+- Do you offer cash on delivery?
+- Can I use multiple payment methods for one order?
+- How do I update my payment information?
+- Do you offer installment payment options?
+- How do I view my payment history?
+
+### User Experience
+- How do I create an account on LocalCarving?
+- Can I use LocalCarving without creating an account?
+- How do I reset my password?
+- Can I change my email address?
+- How do I update my profile information?
+- Can I have multiple delivery addresses?
+- How do I save my favorite restaurants?
+- Can I share my order history with friends?
+- How do I get notifications about my orders?
+- Can I use LocalCarving on my mobile device?
+
+### Reviews and Ratings
+- How do I leave a review for a restaurant?
+- Can I edit my review after posting it?
+- How are restaurant ratings calculated?
+- Can I see photos from other customers?
+- How do I report an issue with my order?
+- Can restaurants respond to reviews?
+- How do I find highly-rated restaurants?
+- Can I filter restaurants by rating?
+- How do I report inappropriate reviews?
+- Can I see my review history?
+
+## Restaurant Owner Specific Questions
+
+### Restaurant Management
+- How do I add my restaurant to LocalCarving?
+- What documents do I need to register my restaurant?
+- How long does it take to get approved?
+- Can I manage multiple restaurants?
+- How do I update my restaurant information?
+- Can I change my restaurant's cuisine type?
+- How do I set my restaurant's operating hours?
+- Can I temporarily close my restaurant?
+- How do I manage my restaurant's profile?
+- Can I add special features to my restaurant page?
+
+### Menu Management
+- How do I add items to my menu?
+- Can I categorize menu items?
+- How do I update prices?
+- Can I mark items as out of stock?
+- How do I add special offers?
+- Can I create combo meals?
+- How do I add nutritional information?
+- Can I set different prices for different times?
+- How do I manage seasonal items?
+- Can I add photos to menu items?
+
+### Order Management
+- How do I receive orders on LocalCarving?
+- Can I set minimum order amounts?
+- How do I accept or reject orders?
+- Can I modify an order after accepting it?
+- How do I mark orders as ready for pickup?
+- Can I communicate with customers about their orders?
+- How do I handle order cancellations?
+- Can I set preparation times for different items?
+- How do I manage peak hours?
+- Can I prioritize certain orders?
+
+### Analytics and Performance
+- What analytics does LocalCarving provide?
+- How can I track my restaurant's performance?
+- Can I see customer demographics?
+- How do I view my sales reports?
+- Can I export my data?
+- How do I track popular items?
+- Can I see peak ordering times?
+- How do I measure customer satisfaction?
+- Can I compare my performance to other restaurants?
+- How do I identify trends in customer behavior?
+
+### Marketing and Promotion
+- How can I promote my restaurant on LocalCarving?
+- Can I create special deals for customers?
+- How do I run promotional campaigns?
+- Can I target specific customer segments?
+- How do I increase my restaurant's visibility?
+- Can I send notifications to customers?
+- How do I create loyalty programs?
+- Can I collaborate with other restaurants?
+- How do I attract new customers?
+- Can I advertise on LocalCarving?
+
+## Technical and Support Questions
+
+### App and Website
+- Is there a LocalCarving mobile app?
+- What devices are supported?
+- How often is the app updated?
+- Can I use LocalCarving offline?
+- How do I report a bug?
+- Is my data secure on LocalCarving?
+- How do I clear my cache?
+- Can I use LocalCarving in multiple languages?
+- How do I update the app?
+- What browsers are supported?
+
+### Account Security
+- How is my account information protected?
+- Can I enable two-factor authentication?
+- How do I report suspicious activity?
+- What should I do if my account is hacked?
+- How often should I change my password?
+- Can I see my login history?
+- How do I deactivate my account?
+- Can I recover a deleted account?
+- How do I manage my privacy settings?
+- What data does LocalCarving collect about me?
+
+### Customer Support
+- How do I contact LocalCarving support?
+- What are your support hours?
+- How long does it take to get a response?
+- Can I request a callback?
+- How do I escalate an issue?
+- Do you offer live chat support?
+- How do I provide feedback about the support service?
+- Can I speak to a supervisor?
+- How do I check the status of my support ticket?
+- What information should I provide when contacting support?
+
+## AI Fallback Tests
+
+### Questions Not in Predefined Q&A
+- What's the weather like today?
+- Tell me a joke
+- What's the capital of France?
+- How does photosynthesis work?
+- What's the meaning of life?
+- What's the best restaurant in town?
+- Do you have any vegetarian options?
+- What's your favorite food?
+- Can you recommend a good wine?
+- What's the difference between sushi and sashimi?
+
+### Ambiguous Questions
+- I need help
+- Something's not working
+- I have a problem
+- Can you assist me?
+- I'm confused
+- I don't understand
+- This is frustrating
+- I'm having trouble
+- It's not working as expected
+- I need guidance
+
+### Domain-Related but Not Predefined
+- What are your most popular restaurants?
+- Do you offer gift cards?
+- What's your policy on food allergies?
+- How do you ensure food safety?
+- What happens if my order is late?
+- Do you have any gluten-free options?
+- What cuisines do you offer?
+- Do you deliver to my area?
+- What are your delivery fees?
+- Do you have any special promotions?
+
+### Role-Specific AI Questions (For Owners)
+- How can I increase my restaurant's visibility?
+- What marketing strategies work best for restaurants?
+- How do I handle negative reviews?
+- What's the best way to manage my inventory?
+- How can I optimize my menu for profitability?
+- What are the current food trends I should be aware of?
+- How do I train my staff effectively?
+- What's the best way to handle peak hours?
+- How can I reduce food waste?
+- What technology should I invest in for my restaurant?
+
+### Role-Specific AI Questions (For Regular Users)
+- What are the healthiest options on the menu?
+- How can I save money when ordering food?
+- What's the etiquette for tipping delivery drivers?
+- How do I know if a restaurant is sanitary?
+- What should I do if my food arrives cold?
+- How can I find restaurants that accommodate my dietary restrictions?
+- What's the difference between various cuisines?
+- How can I make healthier choices when ordering food?
+- What's the best way to reheat leftover food?
+- How can I support local restaurants?
+
+## Error Simulation Tests
+
+### API Connection Issues
+- [Test when AI API is down]
+- [Test when chatbot API is down]
+- [Test with slow network connection]
+- [Test with intermittent connection]
+- [Test with timeout]
+
+### Authentication Issues
+- [Test when user is logged out]
+- [Test with expired session]
+- [Test with invalid session]
+- [Test with missing permissions]
+- [Test with role mismatch]
+
+### AI Option Display
+- [Test AI option appearance]
+- [Test AI option buttons]
+- [Test AI response formatting]
+- [Test AI badge visibility]
+- [Test transition from chatbot to AI response]
+
+## AI Response Quality Tests
+
+### Response Relevance
+- [Test if AI responses are relevant to the question]
+- [Test if AI responses are appropriate for the user's role]
+- [Test if AI responses are helpful and informative]
+- [Test if AI responses are concise and clear]
+- [Test if AI responses avoid inappropriate content]
+
+### Response Formatting
+- [Test if AI responses are properly formatted]
+- [Test if AI responses handle special characters correctly]
+- [Test if AI responses handle links correctly]
+- [Test if AI responses handle lists and bullet points correctly]
+- [Test if AI responses handle code snippets correctly]
+
+### Response Consistency
+- [Test if AI responses are consistent across similar questions]
+- [Test if AI responses maintain a consistent tone]
+- [Test if AI responses maintain a consistent level of detail]
+- [Test if AI responses maintain a consistent level of formality]
+- [Test if AI responses maintain a consistent level of helpfulness]
+
+## AI Performance Tests
+
+### Response Time
+- [Test AI response time for simple questions]
+- [Test AI response time for complex questions]
+- [Test AI response time under load]
+- [Test AI response time with network latency]
+- [Test AI response time with large context]
+
+### Resource Usage
+- [Test AI resource usage for simple questions]
+- [Test AI resource usage for complex questions]
+- [Test AI resource usage under load]
+- [Test AI resource usage with multiple concurrent requests]
+- [Test AI resource usage with large context]
+
+### Error Handling
+- [Test AI error handling for invalid input]
+- [Test AI error handling for malformed requests]
+- [Test AI error handling for API errors]
+- [Test AI error handling for timeout errors]
+- [Test AI error handling for rate limit errors] 

@@ -1,0 +1,120 @@
+# LocalCarving Chatbot Test Questions (Predefined Q&A)
+
+## Basic Functionality Tests
+
+### Greetings
+- Hello
+- Hi there
+- Good morning
+- Hey
+- Greetings
+
+### Basic Questions (Predefined Q&A)
+- How do I place an order?
+- How do I track my order?
+- How do I add a restaurant?
+- How do I manage orders?
+- How do I leave a review?
+- How do I change my password?
+- What payment methods do you accept?
+- How do I contact support?
+- How do I view my reviews?
+- How do I manage my restaurant?
+- How do I update my menu?
+- How do I view restaurant analytics?
+
+### Role-Specific Questions (For Owners)
+- How do I add a new menu item?
+- How do I respond to customer reviews?
+- How do I update my restaurant information?
+- How do I view my restaurant's performance?
+- How do I manage my restaurant's hours?
+- How do I set up delivery options?
+- How do I view my restaurant's orders?
+- How do I update my restaurant's profile picture?
+- How do I manage my restaurant's categories?
+- How do I set up special offers?
+
+### Role-Specific Questions (For Regular Users)
+- How do I save a restaurant to my favorites?
+- How do I rate a restaurant?
+- How do I find restaurants near me?
+- How do I filter restaurants by cuisine?
+- How do I view my order history?
+- How do I reorder from a previous order?
+- How do I apply a promo code?
+- How do I update my delivery address?
+- How do I change my payment method?
+- How do I cancel an order?
+
+## Edge Cases and Error Handling
+
+### Empty or Invalid Input
+- 
+- .
+- ?
+- !!!
+- a
+- 12345
+- <script>alert('test')</script>
+- [Very long message with many characters repeated many times]
+
+### Special Characters
+- What's the difference between "dine-in" and "takeout"?
+- I need help with my order #12345
+- Can I get a 50% discount?
+- What's your policy on refunds?
+- Do you offer gluten-free options?
+
+### Complex Questions
+- What's the best restaurant for Italian food in my area with good reviews and reasonable prices?
+- How do I place an order, track it, and leave a review afterward?
+- Can you explain the entire process from registering as a restaurant owner to receiving and fulfilling orders?
+- What are all the payment methods you accept and how do I set each one up?
+- How do I manage my restaurant's menu, orders, reviews, and analytics all at once?
+
+### Multi-Part Questions
+- First, how do I place an order? Then, how do I track it?
+- I want to know about your refund policy and how to contact support if I need a refund.
+- Can you tell me about your restaurant owner program and how to apply?
+- What are the steps to becoming a restaurant owner and what are the benefits?
+- How do I set up my account, add payment methods, and start ordering?
+
+### Context-Dependent Questions
+- What was my last order?
+- When will my current order arrive?
+- How many reviews have I written?
+- What's the status of my restaurant application?
+- What are my favorite restaurants?
+
+## UI/UX Tests
+
+### Chatbot Visibility
+- [Test chatbot icon visibility]
+- [Test chatbot popup opening/closing]
+- [Test chatbot responsiveness on different screen sizes]
+- [Test chatbot accessibility]
+- [Test chatbot keyboard navigation]
+
+### Message Display
+- [Test long messages]
+- [Test messages with links]
+- [Test messages with special formatting]
+- [Test message timestamps]
+- [Test message scrolling]
+
+## Performance Tests
+
+### Load Testing
+- [Test with many messages in chat history]
+- [Test with rapid message sending]
+- [Test with multiple users simultaneously]
+- [Test with large response payloads]
+- [Test with concurrent API requests]
+
+### Stress Testing
+- [Test under high server load]
+- [Test with limited resources]
+- [Test with network throttling]
+- [Test with memory constraints]
+- [Test with CPU limitations] 
