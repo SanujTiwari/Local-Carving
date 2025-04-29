@@ -1,609 +1,883 @@
 <?php
-session_start();
+require_once '../includes/session.php';
+require_once '../includes/db.php';
 
-// Initialize chat history if it doesn't exist
-if (!isset($_SESSION['chat_history'])) {
-    $_SESSION['chat_history'] = [];
-    // Add initial greeting message
-    $_SESSION['chat_history'][] = [
-        'role' => 'assistant',
-        'message' => "👋 **Welcome to LocalCarving!**\n\nI'm your AI assistant, ready to help you with:\n\n* 🍽️ Restaurant discovery\n* 🚚 Food delivery\n* 📱 App features\n* ❓ General questions\n\nHow can I assist you today?"
-    ];
-}
-
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
-    $user_message = trim($_POST['message']);
-    
-    if (!empty($user_message)) {
-        // Add user message to chat history
-        $_SESSION['chat_history'][] = [
-            'role' => 'user',
-            'message' => $user_message
-        ];
-
-        // Call the API
-        $ch = curl_init('http://' . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']) . '/chat_api.php');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['message' => $user_message]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($http_code === 200) {
-            $result = json_decode($response, true);
-            if (isset($result['response'])) {
-                // Add AI response to chat history
-                $_SESSION['chat_history'][] = [
-                    'role' => 'assistant',
-                    'message' => $result['response']
-                ];
-            }
-        }
-    }
-}
-
-// Clear chat history if requested
-if (isset($_GET['clear'])) {
-    $_SESSION['chat_history'] = [];
-    // Add initial greeting message after clearing
-    $_SESSION['chat_history'][] = [
-        'role' => 'assistant',
-        'message' => "👋 **Welcome to LocalCarving!**\n\nI'm your AI assistant, ready to help you with:\n\n* 🍽️ Restaurant discovery\n* 🚚 Food delivery\n* 📱 App features\n* ❓ General questions\n\nHow can I assist you today?"
-    ];
-    header('Location: ' . $_SERVER['PHP_SELF']);
+// Check if user is logged in
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 
-// Function to format message with markdown-style text
-function formatMessage($message) {
-    // Convert markdown-style formatting to HTML
-    $message = htmlspecialchars($message);
-    
-    // Bold text
-    $message = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $message);
-    
-    // Italic text
-    $message = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $message);
-    
-    // Bullet points
-    $message = preg_replace('/\n\* (.*?)(?=\n|$)/', '<br>• $1', $message);
-    
-    // Line breaks
-    $message = nl2br($message);
-    
-    return $message;
+// Get POST data
+$data = json_decode(file_get_contents('php://input'), true);
+$message = $data['message'] ?? '';
+
+if (empty($message)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Message is required']);
+    exit;
 }
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocalCarving AI Chatbot</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f2f5;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-            overflow-x: hidden;
-            width: 100vw;
-            height: 100vh;
-        }
-        
-        /* Enhanced background elements */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: 
-                radial-gradient(circle at 20% 20%, rgba(52, 152, 219, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(46, 204, 113, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(44, 62, 80, 0.05) 0%, transparent 70%);
-            animation: rotate 120s linear infinite;
-            z-index: -2;
-            pointer-events: none;
-        }
-        
-        body::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: 
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="none"/><circle cx="50" cy="50" r="1" fill="%232c3e50" opacity="0.1"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><rect width="60" height="60" fill="none"/><circle cx="30" cy="30" r="1.5" fill="%233498db" opacity="0.1"/></svg>');
-            background-size: 30px 30px, 60px 60px;
-            background-position: 0 0, 15px 15px;
-            z-index: -1;
-            opacity: 0.6;
-            pointer-events: none;
-        }
-        
-        /* Floating elements */
-        .floating-elements {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            z-index: -1;
-            pointer-events: none;
-        }
-        
-        .floating-element {
-            position: absolute;
-            border-radius: 50%;
-            opacity: 0.1;
-            animation: float 15s infinite ease-in-out;
-            pointer-events: none;
-        }
-        
-        .floating-element:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            top: 10%;
-            left: 10%;
-            animation-delay: 0s;
-        }
-        
-        .floating-element:nth-child(2) {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-            top: 20%;
-            right: 15%;
-            animation-delay: 2s;
-        }
-        
-        .floating-element:nth-child(3) {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #f1c40f, #f39c12);
-            bottom: 15%;
-            left: 20%;
-            animation-delay: 4s;
-        }
-        
-        .floating-element:nth-child(4) {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            bottom: 25%;
-            right: 10%;
-            animation-delay: 6s;
-        }
-        
-        .floating-element:nth-child(5) {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #9b59b6, #8e44ad);
-            top: 40%;
-            left: 30%;
-            animation-delay: 8s;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-20px) rotate(5deg); }
-            50% { transform: translateY(0) rotate(0deg); }
-            75% { transform: translateY(20px) rotate(-5deg); }
-        }
-        
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .page-container {
-            width: 100%;
-            max-width: 1200px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 1;
-        }
-        
-        .header-container {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .home-link {
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            color: #2c3e50;
-            font-weight: 500;
-            padding: 10px 15px;
-            border-radius: 8px;
-            background-color: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .home-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            background-color: #f8f9fa;
-        }
-        
-        .home-link svg {
-            margin-right: 8px;
-            width: 20px;
-            height: 20px;
-        }
-        
-        .chat-container {
-            max-width: 800px;
-            width: 100%;
-            margin: 0 auto;
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            height: 80vh;
-            position: relative;
-            z-index: 2;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .chat-header {
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            padding: 20px;
-            text-align: center;
-            position: relative;
-        }
-        
-        .chat-header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 500;
-        }
-        
-        .chat-header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #3498db, #2ecc71, #f1c40f, #e74c3c);
-        }
-        
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background-color: #f9f9f9;
-            scroll-behavior: smooth;
-        }
-        
-        .message {
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.3s ease forwards;
-        }
-        
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .message.user {
-            align-items: flex-end;
-        }
-        
-        .message.assistant {
-            align-items: flex-start;
-        }
-        
-        .message-content {
-            max-width: 70%;
-            padding: 14px 18px;
-            border-radius: 18px;
-            margin: 4px 0;
-            line-height: 1.5;
-            font-size: 0.95rem;
-        }
-        
-        .user .message-content {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            box-shadow: 0 2px 5px rgba(52, 152, 219, 0.2);
-        }
-        
-        .assistant .message-content {
-            background-color: white;
-            color: #2c3e50;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border: 1px solid #eaeaea;
-        }
-        
-        .assistant .message-content strong {
-            color: #2c3e50;
-            font-weight: 600;
-        }
-        
-        .assistant .message-content em {
-            color: #7f8c8d;
-            font-style: italic;
-        }
-        
-        .chat-input {
-            padding: 20px;
-            border-top: 1px solid #eee;
-            display: flex;
-            gap: 10px;
-            background-color: white;
-        }
-        
-        input[type="text"] {
-            flex: 1;
-            padding: 14px 18px;
-            border: 1px solid #e0e0e0;
-            border-radius: 24px;
-            font-size: 0.95rem;
-            font-family: 'Poppins', sans-serif;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-        
-        input[type="text"]:focus {
-            border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-        }
-        
-        button {
-            padding: 14px 24px;
-            background: linear-gradient(135deg, #2c3e50, #3498db);
-            color: white;
-            border: none;
-            border-radius: 24px;
-            cursor: pointer;
-            font-size: 0.95rem;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(44, 62, 80, 0.2);
-        }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(44, 62, 80, 0.3);
-        }
-        
-        .clear-chat {
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .clear-chat a {
-            color: #7f8c8d;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: color 0.3s ease;
-        }
-        
-        .clear-chat a:hover {
-            color: #e74c3c;
-        }
-        
-        .typing-indicator {
-            display: none;
-            padding: 14px 18px;
-            background-color: white;
-            border-radius: 18px;
-            margin: 4px 0;
-            color: #7f8c8d;
-            opacity: 0;
-            transform: translateY(20px);
-            animation: fadeIn 0.3s ease forwards;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border: 1px solid #eaeaea;
-        }
-        
-        .typing-indicator::after {
-            content: '...';
-            animation: typing 1.5s infinite;
-        }
-        
-        @keyframes typing {
-            0%, 100% { content: '.'; }
-            33% { content: '..'; }
-            66% { content: '...'; }
-        }
-        
-        /* Scrollbar styling */
-        .chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .chat-messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-        
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 3px;
-        }
-        
-        .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .chat-container {
-                height: 90vh;
-                border-radius: 0;
-            }
-            
-            .message-content {
-                max-width: 85%;
-            }
-            
-            .header-container {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-            
-            .home-link {
-                align-self: flex-start;
-            }
-        }
-    </style>
-</head>
-<body>
-    <!-- Floating background elements -->
-    <div class="floating-elements">
-        <div class="floating-element"></div>
-        <div class="floating-element"></div>
-        <div class="floating-element"></div>
-        <div class="floating-element"></div>
-        <div class="floating-element"></div>
-    </div>
-    
-    <div class="page-container">
-        <div class="header-container">
-            <a href="../index.php" class="home-link">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Back to Home
-            </a>
-        </div>
-        
-        <div class="chat-container">
-            <div class="chat-header">
-                <h1>LocalCarving AI Assistant</h1>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <?php foreach ($_SESSION['chat_history'] as $message): ?>
-                    <div class="message <?php echo $message['role']; ?>">
-                        <div class="message-content">
-                            <?php echo formatMessage($message['message']); ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-                <div class="typing-indicator" id="typingIndicator">AI is typing</div>
-            </div>
-            <form method="POST" class="chat-input" id="chatForm">
-                <input type="text" name="message" placeholder="Type your message here..." required autocomplete="off">
-                <button type="submit">Send</button>
-            </form>
-        </div>
-        <div class="clear-chat">
-            <a href="?clear=1">Clear Chat History</a>
-        </div>
-    </div>
 
-    <script>
-        // Scroll to bottom of chat
-        function scrollToBottom() {
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+// Predefined Q&A pairs
+$qa_pairs = [
+    // General Questions
+    [
+        'question' => 'what is localcarving',
+        'answer' => 'LocalCarving is a food delivery and restaurant management platform that connects customers with local restaurants. We offer easy ordering, delivery tracking, restaurant management tools, and a seamless dining experience.',
+        'suggestions' => [
+            'How does LocalCarving work?',
+            'What services do you offer?',
+            'How do I place an order?'
+        ]
+    ],
+    [
+        'question' => 'how does localcarving work',
+        'answer' => 'LocalCarving works by connecting customers with local restaurants. Customers can browse menus, place orders, track deliveries, and leave reviews. Restaurant owners can manage their menus, process orders, and view analytics.',
+        'suggestions' => [
+            'How do I place an order?',
+            'How do I track my order?',
+            'What payment methods do you accept?'
+        ]
+    ],
+    [
+        'question' => 'what services do you offer',
+        'answer' => 'LocalCarving offers food delivery, restaurant management tools, order tracking, review system, analytics for restaurants, and customer support services.',
+        'suggestions' => [
+            'How do I place an order?',
+            'How do I manage my restaurant?',
+            'How do I leave a review?'
+        ]
+    ],
 
-        // Show typing indicator
-        function showTypingIndicator() {
-            document.getElementById('typingIndicator').style.display = 'block';
-            scrollToBottom();
-        }
+    // Ordering Process
+    [
+        'question' => 'how do i place an order',
+        'answer' => 'To place an order, go to the Restaurants page, select a restaurant, browse their menu, add items to your cart, and proceed to checkout.',
+        'suggestions' => ['how do i track my order', 'what payment methods do you accept', 'can i customize my order']
+    ],
+    [
+        'question' => 'how do i track my order',
+        'answer' => 'You can track your order by going to "My Orders" in your dashboard. There you\'ll see the status of all your orders.',
+        'suggestions' => ['how long does delivery take', 'what happens if my order is late', 'can i cancel my order']
+    ],
+    [
+        'question' => 'what payment methods do you accept',
+        'answer' => 'We accept credit/debit cards, PayPal, and cash on delivery for some restaurants.',
+        'suggestions' => ['is my payment information secure', 'can i save payment methods', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'can i customize my order',
+        'answer' => 'Yes, you can add special instructions when placing your order. Many restaurants allow you to customize items (e.g., "no onions", "extra spicy").',
+        'suggestions' => ['how do i add special instructions', 'can i request specific cooking preferences', 'what if i have food allergies']
+    ],
+    [
+        'question' => 'how long does delivery take',
+        'answer' => 'Delivery times vary by restaurant and your location. Most orders arrive within 30-45 minutes. You can see estimated delivery times when placing your order.',
+        'suggestions' => ['what happens if my order is late', 'can i schedule a future delivery', 'is there a minimum order amount']
+    ],
+    [
+        'question' => 'what happens if my order is late',
+        'answer' => 'If your order is significantly delayed, you can contact our customer support. We work with restaurants to ensure timely delivery and may offer compensation for excessive delays.',
+        'suggestions' => ['how do i contact customer support', 'can i get a refund for a late order', 'how do i report delivery issues']
+    ],
+    [
+        'question' => 'can i cancel my order',
+        'answer' => 'You can cancel your order if the restaurant hasn\'t started preparing it yet. Go to "My Orders" and look for the cancel option. If the restaurant has already started preparing your order, you may need to contact customer support.',
+        'suggestions' => ['what is your refund policy', 'how do i get a refund', 'can i modify my order instead of canceling']
+    ],
+    [
+        'question' => 'is my payment information secure',
+        'answer' => 'Yes, we use industry-standard encryption to protect your payment information. We never store your full credit card details on our servers.',
+        'suggestions' => ['can i save payment methods', 'how do i update my payment information', 'what happens if there\'s a payment error']
+    ],
+    [
+        'question' => 'can i save payment methods',
+        'answer' => 'Yes, you can save multiple payment methods to your account for faster checkout. Go to your profile settings and select "Payment Methods" to add or manage your saved payment options.',
+        'suggestions' => ['how do i update my payment information', 'is my payment information secure', 'what payment methods do you accept']
+    ],
+    [
+        'question' => 'do you offer any discounts',
+        'answer' => 'Yes, we offer various discounts and promotions. Check the "Promotions" section on our homepage or look for special offers when browsing restaurants. You can also sign up for our newsletter to receive exclusive deals.',
+        'suggestions' => ['how do i apply a promo code', 'are there any first-time user discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'how do i add special instructions',
+        'answer' => 'When placing your order, you\'ll see a "Special Instructions" field where you can add any specific requests for the restaurant. You can also add instructions for individual items when adding them to your cart.',
+        'suggestions' => ['can i customize my order', 'what if i have food allergies', 'can i request specific cooking preferences']
+    ],
+    [
+        'question' => 'can i request specific cooking preferences',
+        'answer' => 'Yes, you can request specific cooking preferences in the special instructions field. For example, you can ask for "well-done", "rare", or "medium" for meat items.',
+        'suggestions' => ['how do i add special instructions', 'what if i have food allergies', 'can i customize my order']
+    ],
+    [
+        'question' => 'what if i have food allergies',
+        'answer' => 'If you have food allergies, please clearly specify them in the special instructions when placing your order. You can also contact the restaurant directly through our platform to discuss your dietary requirements.',
+        'suggestions' => ['do you have gluten-free options', 'are there vegetarian restaurants', 'can i request allergen information']
+    ],
+    [
+        'question' => 'can i schedule a future delivery',
+        'answer' => 'Yes, you can schedule orders for future delivery. When checking out, look for the "Schedule Delivery" option to select your preferred delivery date and time.',
+        'suggestions' => ['how far in advance can i schedule', 'can i modify a scheduled order', 'what happens if i need to cancel a scheduled order']
+    ],
+    [
+        'question' => 'is there a minimum order amount',
+        'answer' => 'Minimum order amounts vary by restaurant. You\'ll see the minimum order amount clearly displayed when browsing a restaurant\'s menu.',
+        'suggestions' => ['do you have delivery fees', 'are there any service charges', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'how do i contact customer support',
+        'answer' => 'You can contact our customer support team through the "Help" section in your account, by emailing support@localcarving.com, or by using the chat feature on our website.',
+        'suggestions' => ['what are your support hours', 'how do i report an issue with my order', 'can i speak to a human representative']
+    ],
+    [
+        'question' => 'can i get a refund for a late order',
+        'answer' => 'If your order is significantly delayed, you may be eligible for a refund or credit. Contact our customer support team with your order details, and we\'ll assist you with the refund process.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'how long does it take to process a refund']
+    ],
+    [
+        'question' => 'how do i report delivery issues',
+        'answer' => 'You can report delivery issues through the "Help" section in your account. Select your order and describe the issue. Our customer support team will investigate and assist you accordingly.',
+        'suggestions' => ['how do i contact customer support', 'what happens if my order is missing items', 'can i get a refund for a problematic order']
+    ],
+    [
+        'question' => 'what is your refund policy',
+        'answer' => 'Our refund policy varies depending on the issue. For canceled orders before preparation, you\'ll receive a full refund. For issues with delivered orders, we evaluate each case individually and may offer partial or full refunds.',
+        'suggestions' => ['how do i request a refund', 'how long does it take to process a refund', 'what happens if i dispute a charge']
+    ],
+    [
+        'question' => 'how do i get a refund',
+        'answer' => 'To request a refund, go to "My Orders" in your account, select the relevant order, and click on "Request Refund." Provide details about why you\'re requesting a refund, and our team will review your request.',
+        'suggestions' => ['what is your refund policy', 'how long does it take to process a refund', 'can i cancel my order instead']
+    ],
+    [
+        'question' => 'can i modify my order instead of canceling',
+        'answer' => 'If you need to modify your order after placing it, contact the restaurant directly through our platform as soon as possible. If they haven\'t started preparing your order, they may be able to accommodate your changes.',
+        'suggestions' => ['how do i contact the restaurant', 'what if the restaurant can\'t modify my order', 'can i cancel my order']
+    ],
+    [
+        'question' => 'how do i update my payment information',
+        'answer' => 'You can update your payment information in your account settings. Go to "Payment Methods" and select "Edit" next to the payment method you want to update.',
+        'suggestions' => ['can i save payment methods', 'is my payment information secure', 'what payment methods do you accept']
+    ],
+    [
+        'question' => 'what happens if there\'s a payment error',
+        'answer' => 'If you encounter a payment error, try using a different payment method or check if your card has sufficient funds. If the issue persists, contact our customer support team for assistance.',
+        'suggestions' => ['how do i contact customer support', 'can i use a different payment method', 'is my payment information secure']
+    ],
+    [
+        'question' => 'how do i apply a promo code',
+        'answer' => 'To apply a promo code, enter it in the "Promo Code" field during checkout. If the code is valid, the discount will be automatically applied to your order total.',
+        'suggestions' => ['do you offer any discounts', 'are there any first-time user discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'are there any first-time user discounts',
+        'answer' => 'Yes, we often offer special discounts for first-time users. Check our homepage or the "Promotions" section for current first-time user offers.',
+        'suggestions' => ['how do i apply a promo code', 'do you offer any discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'do you have a loyalty program',
+        'answer' => 'Yes, we have a loyalty program where you can earn points for every order. These points can be redeemed for discounts on future orders. You can view your points balance in your account dashboard.',
+        'suggestions' => ['how do i redeem my loyalty points', 'how many points do i earn per order', 'are there any special loyalty promotions']
+    ],
+    [
+        'question' => 'how far in advance can i schedule',
+        'answer' => 'You can schedule orders up to 7 days in advance. This allows you to plan ahead for events or busy days when you won\'t have time to cook.',
+        'suggestions' => ['can i modify a scheduled order', 'what happens if i need to cancel a scheduled order', 'can i schedule a future delivery']
+    ],
+    [
+        'question' => 'can i modify a scheduled order',
+        'answer' => 'Yes, you can modify a scheduled order as long as it\'s at least 2 hours before the scheduled delivery time. Go to "My Orders," find your scheduled order, and click on "Modify Order."',
+        'suggestions' => ['what happens if i need to cancel a scheduled order', 'how far in advance can i schedule', 'can i schedule a future delivery']
+    ],
+    [
+        'question' => 'what happens if i need to cancel a scheduled order',
+        'answer' => 'You can cancel a scheduled order up to 2 hours before the scheduled delivery time. Go to "My Orders," find your scheduled order, and click on "Cancel Order." If it\'s less than 2 hours before delivery, contact customer support.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'can i modify a scheduled order instead']
+    ],
+    [
+        'question' => 'do you have delivery fees',
+        'answer' => 'Delivery fees vary by restaurant and your location. The fee is clearly displayed when you place your order. Some restaurants offer free delivery for orders above a certain amount.',
+        'suggestions' => ['is there a minimum order amount', 'are there any service charges', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'are there any service charges',
+        'answer' => 'Some restaurants may apply a service charge to cover operational costs. Any service charges will be clearly displayed during checkout before you confirm your order.',
+        'suggestions' => ['do you have delivery fees', 'is there a minimum order amount', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'what are your support hours',
+        'answer' => 'Our customer support team is available 24/7 to assist you with any issues. You can reach us through the chat feature on our website, by email, or through the "Help" section in your account.',
+        'suggestions' => ['how do i contact customer support', 'can i speak to a human representative', 'how do i report an issue with my order']
+    ],
+    [
+        'question' => 'how do i report an issue with my order',
+        'answer' => 'To report an issue with your order, go to "My Orders" in your account, select the relevant order, and click on "Report Issue." Provide details about the problem, and our customer support team will assist you.',
+        'suggestions' => ['how do i contact customer support', 'what happens if my order is missing items', 'can i get a refund for a problematic order']
+    ],
+    [
+        'question' => 'can i speak to a human representative',
+        'answer' => 'Yes, you can speak to a human representative by contacting our customer support team through the chat feature on our website. During peak hours, there might be a short wait time.',
+        'suggestions' => ['what are your support hours', 'how do i contact customer support', 'how do i report an issue with my order']
+    ],
+    [
+        'question' => 'what happens if my order is missing items',
+        'answer' => 'If your order is missing items, please report the issue through the "Help" section in your account. Select your order and describe the missing items. Our customer support team will investigate and may offer a refund or replacement.',
+        'suggestions' => ['how do i report an issue with my order', 'can i get a refund for a problematic order', 'how do i contact customer support']
+    ],
+    [
+        'question' => 'how long does it take to process a refund',
+        'answer' => 'Refunds typically process within 3-5 business days, depending on your payment method and bank. Credit card refunds may take up to 10 business days to appear on your statement.',
+        'suggestions' => ['what is your refund policy', 'how do i request a refund', 'what happens if i dispute a charge']
+    ],
+    [
+        'question' => 'what happens if i dispute a charge',
+        'answer' => 'If you believe a charge is incorrect, please contact our customer support team first. If we can\'t resolve the issue, you can dispute the charge with your bank or credit card company. We\'ll cooperate with any investigation.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'how do i request a refund']
+    ],
+    [
+        'question' => 'how do i contact the restaurant',
+        'answer' => 'You can contact a restaurant through our platform by going to their page and clicking on the "Contact" button. This will open a chat window where you can send a message to the restaurant.',
+        'suggestions' => ['can i modify my order instead of canceling', 'what if the restaurant can\'t modify my order', 'how do i leave a review for a restaurant']
+    ],
+    [
+        'question' => 'what if the restaurant can\'t modify my order',
+        'answer' => 'If the restaurant can\'t modify your order, you may need to cancel it and place a new order with the desired changes. If you\'ve already paid, you\'ll receive a refund for the canceled order.',
+        'suggestions' => ['how do i cancel my order', 'what is your refund policy', 'how do i contact the restaurant']
+    ],
+    [
+        'question' => 'how do i leave a review for a restaurant',
+        'answer' => 'After receiving your order, you can leave a review by going to "My Orders" in your account, finding the completed order, and clicking on "Leave Review." You can rate the restaurant and provide feedback about your experience.',
+        'suggestions' => ['can i edit my review after submitting it', 'how do restaurant ratings work', 'what happens if i report an issue with my order']
+    ],
+    [
+        'question' => 'can i edit my review after submitting it',
+        'answer' => 'Yes, you can edit your review within 7 days of submitting it. Go to "My Reviews" in your account, find the review you want to edit, and click on "Edit."',
+        'suggestions' => ['how do i leave a review for a restaurant', 'how do restaurant ratings work', 'can i delete my review']
+    ],
+    [
+        'question' => 'how do restaurant ratings work',
+        'answer' => 'Restaurant ratings are based on customer reviews and feedback. The overall rating is calculated as an average of all reviews. Ratings consider factors like food quality, delivery time, and customer service.',
+        'suggestions' => ['how do i leave a review for a restaurant', 'can i edit my review after submitting it', 'what happens if i report an issue with my order']
+    ],
+    [
+        'question' => 'can i delete my review',
+        'answer' => 'Yes, you can delete your review by going to "My Reviews" in your account, finding the review you want to delete, and clicking on "Delete." Please note that deleted reviews cannot be recovered.',
+        'suggestions' => ['how do i leave a review for a restaurant', 'can i edit my review after submitting it', 'how do restaurant ratings work']
+    ],
+    [
+        'question' => 'how do i redeem my loyalty points',
+        'answer' => 'To redeem your loyalty points, go to the checkout page when placing an order. You\'ll see an option to apply your points for a discount. Select the amount of points you want to redeem, and the discount will be applied to your order total.',
+        'suggestions' => ['how many points do i earn per order', 'are there any special loyalty promotions', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'how many points do i earn per order',
+        'answer' => 'You earn 1 point for every $1 spent on orders. Some special promotions may offer bonus points for specific restaurants or during certain periods.',
+        'suggestions' => ['how do i redeem my loyalty points', 'are there any special loyalty promotions', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'are there any special loyalty promotions',
+        'answer' => 'Yes, we occasionally run special promotions where you can earn bonus loyalty points. Check the "Promotions" section on our homepage or your account dashboard for current loyalty promotions.',
+        'suggestions' => ['how do i redeem my loyalty points', 'how many points do i earn per order', 'do you have a loyalty program']
+    ],
 
-        // Hide typing indicator
-        function hideTypingIndicator() {
-            document.getElementById('typingIndicator').style.display = 'none';
-        }
+    // Restaurant and Food Related Questions
+    [
+        'question' => 'what types of restaurants do you have',
+        'answer' => 'We have a wide variety of restaurants including local eateries, cafes, fast food, fine dining, and international cuisine. You can browse restaurants by cuisine type, rating, or location.',
+        'suggestions' => ['do you have vegetarian restaurants', 'what cuisines are available', 'how do i find restaurants near me']
+    ],
+    [
+        'question' => 'do you have vegetarian restaurants',
+        'answer' => 'Yes, we have many vegetarian restaurants. You can filter restaurants by dietary preferences to find vegetarian options. Many non-vegetarian restaurants also offer vegetarian dishes.',
+        'suggestions' => ['do you have vegan options', 'what types of restaurants do you have', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'do you have vegan options',
+        'answer' => 'Yes, we have restaurants that specialize in vegan cuisine. You can filter restaurants by dietary preferences to find vegan options. Many restaurants also offer vegan dishes on their regular menu.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have gluten-free options', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'do you have gluten-free options',
+        'answer' => 'Yes, we have restaurants that offer gluten-free options. You can filter restaurants by dietary preferences to find gluten-free options. Many restaurants clearly mark gluten-free items on their menus.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have vegan options', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'what cuisines are available',
+        'answer' => 'We offer a wide range of cuisines including Italian, Mexican, Chinese, Indian, Thai, Japanese, American, Mediterranean, and more. You can browse restaurants by cuisine type to find what you\'re looking for.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants by cuisine', 'do you have international restaurants']
+    ],
+    [
+        'question' => 'how do i find restaurants near me',
+        'answer' => 'You can find restaurants near you by using the location filter on our homepage. Enter your address or allow us to use your current location, and we\'ll show you restaurants in your area.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i filter restaurants by rating', 'can i save my favorite restaurants']
+    ],
+    [
+        'question' => 'how do i find restaurants with specific dietary options',
+        'answer' => 'You can filter restaurants by dietary preferences such as vegetarian, vegan, gluten-free, and more. Use the filter options on our homepage to find restaurants that meet your dietary requirements.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have vegan options', 'do you have gluten-free options']
+    ],
+    [
+        'question' => 'how do i find restaurants by cuisine',
+        'answer' => 'You can browse restaurants by cuisine type using the filter options on our homepage. Select your preferred cuisine, and we\'ll show you restaurants that specialize in that type of food.',
+        'suggestions' => ['what cuisines are available', 'how do i find restaurants near me', 'how do i filter restaurants by rating']
+    ],
+    [
+        'question' => 'do you have international restaurants',
+        'answer' => 'Yes, we have many international restaurants offering cuisines from around the world. You can browse restaurants by cuisine type to find international options.',
+        'suggestions' => ['what cuisines are available', 'how do i find restaurants by cuisine', 'what types of restaurants do you have']
+    ],
+    [
+        'question' => 'how do i filter restaurants by rating',
+        'answer' => 'You can filter restaurants by rating using the filter options on our homepage. Select your preferred minimum rating (e.g., 4 stars and above), and we\'ll show you restaurants that meet that criteria.',
+        'suggestions' => ['how do restaurant ratings work', 'how do i find restaurants near me', 'can i save my favorite restaurants']
+    ],
+    [
+        'question' => 'can i save my favorite restaurants',
+        'answer' => 'Yes, you can save your favorite restaurants by clicking the heart icon on their page. You can view your saved restaurants by going to "My Favorites" in your account dashboard.',
+        'suggestions' => ['how do i find restaurants near me', 'how do i filter restaurants by rating', 'can i get notifications from my favorite restaurants']
+    ],
+    [
+        'question' => 'can i get notifications from my favorite restaurants',
+        'answer' => 'Yes, you can enable notifications for your favorite restaurants to receive updates about new menu items, special offers, and promotions. Go to your account settings and select "Notification Preferences" to manage these settings.',
+        'suggestions' => ['can i save my favorite restaurants', 'how do i find restaurants near me', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'how do i view a restaurant\'s menu',
+        'answer' => 'To view a restaurant\'s menu, go to their page and click on the "Menu" tab. You can browse through different categories and see details, prices, and photos of each dish.',
+        'suggestions' => ['can i see nutritional information for menu items', 'how do i find specific dishes', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'can i see nutritional information for menu items',
+        'answer' => 'Some restaurants provide nutritional information for their menu items. Look for the nutritional info icon next to menu items, or check the restaurant\'s page for a link to their complete nutritional information.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'how do i find specific dishes', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'how do i find specific dishes',
+        'answer' => 'You can search for specific dishes using the search bar on our homepage. Enter the name of the dish you\'re looking for, and we\'ll show you restaurants that offer it.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'can i see nutritional information for menu items', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'can i filter menu items by dietary preferences',
+        'answer' => 'Yes, you can filter menu items by dietary preferences such as vegetarian, vegan, gluten-free, and more. Use the filter options on a restaurant\'s menu page to find items that meet your dietary requirements.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'can i see nutritional information for menu items', 'how do i find specific dishes']
+    ],
+    [
+        'question' => 'do you have any local specialties',
+        'answer' => 'Yes, we feature many local specialties from restaurants in your area. You can find these by browsing the "Local Favorites" section on our homepage or by filtering restaurants by cuisine type.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'what cuisines are available']
+    ],
+    [
+        'question' => 'do you have any seasonal menu items',
+        'answer' => 'Yes, many restaurants on our platform offer seasonal menu items. These are typically highlighted on the restaurant\'s page or in the "Special Offers" section. You can also filter restaurants by "Seasonal Specials" to find these items.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'how do i find specific dishes', 'do you have any local specialties']
+    ],
+    [
+        'question' => 'do you have any healthy food options',
+        'answer' => 'Yes, we have many restaurants that offer healthy food options. You can filter restaurants by dietary preferences such as "Healthy," "Low-Calorie," or "Organic" to find these options.',
+        'suggestions' => ['how do i find restaurants with specific dietary options', 'can i see nutritional information for menu items', 'do you have vegetarian restaurants']
+    ],
+    [
+        'question' => 'do you have any kid-friendly restaurants',
+        'answer' => 'Yes, we have many kid-friendly restaurants. You can filter restaurants by "Kid-Friendly" to find options that offer children\'s menus, high chairs, and other amenities for families.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any family restaurants']
+    ],
+    [
+        'question' => 'do you have any family restaurants',
+        'answer' => 'Yes, we have many family restaurants that offer a welcoming atmosphere and menu options for all ages. You can filter restaurants by "Family-Friendly" to find these options.',
+        'suggestions' => ['do you have any kid-friendly restaurants', 'what types of restaurants do you have', 'how do i find restaurants near me']
+    ],
+    [
+        'question' => 'do you have any romantic restaurants',
+        'answer' => 'Yes, we have many romantic restaurants perfect for date nights or special occasions. You can filter restaurants by "Romantic" to find options with a cozy atmosphere and suitable menu.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants by cuisine', 'do you have any fine dining restaurants']
+    ],
+    [
+        'question' => 'do you have any fine dining restaurants',
+        'answer' => 'Yes, we have many fine dining restaurants offering an upscale dining experience. You can filter restaurants by "Fine Dining" to find these options.',
+        'suggestions' => ['do you have any romantic restaurants', 'what types of restaurants do you have', 'how do i find restaurants by cuisine']
+    ],
+    [
+        'question' => 'do you have any casual dining restaurants',
+        'answer' => 'Yes, we have many casual dining restaurants offering a relaxed atmosphere and diverse menu options. You can filter restaurants by "Casual Dining" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any family restaurants']
+    ],
+    [
+        'question' => 'do you have any cafes',
+        'answer' => 'Yes, we have many cafes offering coffee, tea, pastries, and light meals. You can filter restaurants by "Cafe" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find cafes near me', 'do you have any breakfast restaurants']
+    ],
+    [
+        'question' => 'how do i find cafes near me',
+        'answer' => 'You can find cafes near you by using the location filter on our homepage and selecting "Cafe" as the restaurant type. Enter your address or allow us to use your current location, and we\'ll show you cafes in your area.',
+        'suggestions' => ['do you have any cafes', 'how do i find restaurants near me', 'do you have any breakfast restaurants']
+    ],
+    [
+        'question' => 'do you have any breakfast restaurants',
+        'answer' => 'Yes, we have many restaurants that serve breakfast. You can filter restaurants by "Breakfast" to find these options.',
+        'suggestions' => ['do you have any cafes', 'how do i find restaurants near me', 'what types of restaurants do you have']
+    ],
+    [
+        'question' => 'do you have any dessert places',
+        'answer' => 'Yes, we have many dessert places offering ice cream, cakes, pastries, and other sweet treats. You can filter restaurants by "Dessert" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any cafes']
+    ],
+    [
+        'question' => 'do you have any food trucks',
+        'answer' => 'Yes, we feature many food trucks on our platform. You can filter restaurants by "Food Truck" to find these options. Food trucks often have unique menus and can be found at various locations.',
+        'suggestions' => ['how do i find food trucks near me', 'what types of restaurants do you have', 'how do i track a food truck\'s location']
+    ],
+    [
+        'question' => 'how do i find food trucks near me',
+        'answer' => 'You can find food trucks near you by using the location filter on our homepage and selecting "Food Truck" as the restaurant type. Enter your address or allow us to use your current location, and we\'ll show you food trucks in your area.',
+        'suggestions' => ['do you have any food trucks', 'how do i track a food truck\'s location', 'how do i place an order from a food truck']
+    ],
+    [
+        'question' => 'how do i track a food truck\'s location',
+        'answer' => 'Some food trucks on our platform offer real-time location tracking. If available, you\'ll see a "Track Location" button on the food truck\'s page. Click on it to see their current location on a map.',
+        'suggestions' => ['do you have any food trucks', 'how do i find food trucks near me', 'how do i place an order from a food truck']
+    ],
+    [
+        'question' => 'how do i place an order from a food truck',
+        'answer' => 'You can place an order from a food truck just like any other restaurant on our platform. Go to the food truck\'s page, browse their menu, add items to your cart, and proceed to checkout. Some food trucks may have specific pickup locations or delivery areas.',
+        'suggestions' => ['do you have any food trucks', 'how do i find food trucks near me', 'how do i track a food truck\'s location']
+    ],
+    [
+        'question' => 'how do i place an order',
+        'answer' => 'To place an order, go to the Restaurants page, select a restaurant, browse their menu, add items to your cart, and proceed to checkout.',
+        'suggestions' => ['how do i track my order', 'what payment methods do you accept', 'can i customize my order']
+    ],
+    [
+        'question' => 'how do i track my order',
+        'answer' => 'You can track your order by going to "My Orders" in your dashboard. There you\'ll see the status of all your orders.',
+        'suggestions' => ['how long does delivery take', 'what happens if my order is late', 'can i cancel my order']
+    ],
+    [
+        'question' => 'what payment methods do you accept',
+        'answer' => 'We accept credit/debit cards, PayPal, and cash on delivery for some restaurants.',
+        'suggestions' => ['is my payment information secure', 'can i save payment methods', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'can i customize my order',
+        'answer' => 'Yes, you can add special instructions when placing your order. Many restaurants allow you to customize items (e.g., "no onions", "extra spicy").',
+        'suggestions' => ['how do i add special instructions', 'can i request specific cooking preferences', 'what if i have food allergies']
+    ],
+    [
+        'question' => 'how long does delivery take',
+        'answer' => 'Delivery times vary by restaurant and your location. Most orders arrive within 30-45 minutes. You can see estimated delivery times when placing your order.',
+        'suggestions' => ['what happens if my order is late', 'can i schedule a future delivery', 'is there a minimum order amount']
+    ],
+    [
+        'question' => 'what happens if my order is late',
+        'answer' => 'If your order is significantly delayed, you can contact our customer support. We work with restaurants to ensure timely delivery and may offer compensation for excessive delays.',
+        'suggestions' => ['how do i contact customer support', 'can i get a refund for a late order', 'how do i report delivery issues']
+    ],
+    [
+        'question' => 'can i cancel my order',
+        'answer' => 'You can cancel your order if the restaurant hasn\'t started preparing it yet. Go to "My Orders" and look for the cancel option. If the restaurant has already started preparing your order, you may need to contact customer support.',
+        'suggestions' => ['what is your refund policy', 'how do i get a refund', 'can i modify my order instead of canceling']
+    ],
+    [
+        'question' => 'is my payment information secure',
+        'answer' => 'Yes, we use industry-standard encryption to protect your payment information. We never store your full credit card details on our servers.',
+        'suggestions' => ['can i save payment methods', 'how do i update my payment information', 'what happens if there\'s a payment error']
+    ],
+    [
+        'question' => 'can i save payment methods',
+        'answer' => 'Yes, you can save multiple payment methods to your account for faster checkout. Go to your profile settings and select "Payment Methods" to add or manage your saved payment options.',
+        'suggestions' => ['how do i update my payment information', 'is my payment information secure', 'what payment methods do you accept']
+    ],
+    [
+        'question' => 'do you offer any discounts',
+        'answer' => 'Yes, we offer various discounts and promotions. Check the "Promotions" section on our homepage or look for special offers when browsing restaurants. You can also sign up for our newsletter to receive exclusive deals.',
+        'suggestions' => ['how do i apply a promo code', 'are there any first-time user discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'how do i add special instructions',
+        'answer' => 'When placing your order, you\'ll see a "Special Instructions" field where you can add any specific requests for the restaurant. You can also add instructions for individual items when adding them to your cart.',
+        'suggestions' => ['can i customize my order', 'what if i have food allergies', 'can i request specific cooking preferences']
+    ],
+    [
+        'question' => 'can i request specific cooking preferences',
+        'answer' => 'Yes, you can request specific cooking preferences in the special instructions field. For example, you can ask for "well-done", "rare", or "medium" for meat items.',
+        'suggestions' => ['how do i add special instructions', 'what if i have food allergies', 'can i customize my order']
+    ],
+    [
+        'question' => 'what if i have food allergies',
+        'answer' => 'If you have food allergies, please clearly specify them in the special instructions when placing your order. You can also contact the restaurant directly through our platform to discuss your dietary requirements.',
+        'suggestions' => ['do you have gluten-free options', 'are there vegetarian restaurants', 'can i request allergen information']
+    ],
+    [
+        'question' => 'can i schedule a future delivery',
+        'answer' => 'Yes, you can schedule orders for future delivery. When checking out, look for the "Schedule Delivery" option to select your preferred delivery date and time.',
+        'suggestions' => ['how far in advance can i schedule', 'can i modify a scheduled order', 'what happens if i need to cancel a scheduled order']
+    ],
+    [
+        'question' => 'is there a minimum order amount',
+        'answer' => 'Minimum order amounts vary by restaurant. You\'ll see the minimum order amount clearly displayed when browsing a restaurant\'s menu.',
+        'suggestions' => ['do you have delivery fees', 'are there any service charges', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'how do i contact customer support',
+        'answer' => 'You can contact our customer support team through the "Help" section in your account, by emailing support@localcarving.com, or by using the chat feature on our website.',
+        'suggestions' => ['what are your support hours', 'how do i report an issue with my order', 'can i speak to a human representative']
+    ],
+    [
+        'question' => 'can i get a refund for a late order',
+        'answer' => 'If your order is significantly delayed, you may be eligible for a refund or credit. Contact our customer support team with your order details, and we\'ll assist you with the refund process.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'how long does it take to process a refund']
+    ],
+    [
+        'question' => 'how do i report delivery issues',
+        'answer' => 'You can report delivery issues through the "Help" section in your account. Select your order and describe the issue. Our customer support team will investigate and assist you accordingly.',
+        'suggestions' => ['how do i contact customer support', 'what happens if my order is missing items', 'can i get a refund for a problematic order']
+    ],
+    [
+        'question' => 'what is your refund policy',
+        'answer' => 'Our refund policy varies depending on the issue. For canceled orders before preparation, you\'ll receive a full refund. For issues with delivered orders, we evaluate each case individually and may offer partial or full refunds.',
+        'suggestions' => ['how do i request a refund', 'how long does it take to process a refund', 'what happens if i dispute a charge']
+    ],
+    [
+        'question' => 'how do i get a refund',
+        'answer' => 'To request a refund, go to "My Orders" in your account, select the relevant order, and click on "Request Refund." Provide details about why you\'re requesting a refund, and our team will review your request.',
+        'suggestions' => ['what is your refund policy', 'how long does it take to process a refund', 'can i cancel my order instead']
+    ],
+    [
+        'question' => 'can i modify my order instead of canceling',
+        'answer' => 'If you need to modify your order after placing it, contact the restaurant directly through our platform as soon as possible. If they haven\'t started preparing your order, they may be able to accommodate your changes.',
+        'suggestions' => ['how do i contact the restaurant', 'what if the restaurant can\'t modify my order', 'can i cancel my order']
+    ],
+    [
+        'question' => 'how do i update my payment information',
+        'answer' => 'You can update your payment information in your account settings. Go to "Payment Methods" and select "Edit" next to the payment method you want to update.',
+        'suggestions' => ['can i save payment methods', 'is my payment information secure', 'what payment methods do you accept']
+    ],
+    [
+        'question' => 'what happens if there\'s a payment error',
+        'answer' => 'If you encounter a payment error, try using a different payment method or check if your card has sufficient funds. If the issue persists, contact our customer support team for assistance.',
+        'suggestions' => ['how do i contact customer support', 'can i use a different payment method', 'is my payment information secure']
+    ],
+    [
+        'question' => 'how do i apply a promo code',
+        'answer' => 'To apply a promo code, enter it in the "Promo Code" field during checkout. If the code is valid, the discount will be automatically applied to your order total.',
+        'suggestions' => ['do you offer any discounts', 'are there any first-time user discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'are there any first-time user discounts',
+        'answer' => 'Yes, we often offer special discounts for first-time users. Check our homepage or the "Promotions" section for current first-time user offers.',
+        'suggestions' => ['how do i apply a promo code', 'do you offer any discounts', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'do you have a loyalty program',
+        'answer' => 'Yes, we have a loyalty program where you can earn points for every order. These points can be redeemed for discounts on future orders. You can view your points balance in your account dashboard.',
+        'suggestions' => ['how do i redeem my loyalty points', 'how many points do i earn per order', 'are there any special loyalty promotions']
+    ],
+    [
+        'question' => 'how far in advance can i schedule',
+        'answer' => 'You can schedule orders up to 7 days in advance. This allows you to plan ahead for events or busy days when you won\'t have time to cook.',
+        'suggestions' => ['can i modify a scheduled order', 'what happens if i need to cancel a scheduled order', 'can i schedule a future delivery']
+    ],
+    [
+        'question' => 'can i modify a scheduled order',
+        'answer' => 'Yes, you can modify a scheduled order as long as it\'s at least 2 hours before the scheduled delivery time. Go to "My Orders," find your scheduled order, and click on "Modify Order."',
+        'suggestions' => ['what happens if i need to cancel a scheduled order', 'how far in advance can i schedule', 'can i schedule a future delivery']
+    ],
+    [
+        'question' => 'what happens if i need to cancel a scheduled order',
+        'answer' => 'You can cancel a scheduled order up to 2 hours before the scheduled delivery time. Go to "My Orders," find your scheduled order, and click on "Cancel Order." If it\'s less than 2 hours before delivery, contact customer support.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'can i modify a scheduled order instead']
+    ],
+    [
+        'question' => 'do you have delivery fees',
+        'answer' => 'Delivery fees vary by restaurant and your location. The fee is clearly displayed when you place your order. Some restaurants offer free delivery for orders above a certain amount.',
+        'suggestions' => ['is there a minimum order amount', 'are there any service charges', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'are there any service charges',
+        'answer' => 'Some restaurants may apply a service charge to cover operational costs. Any service charges will be clearly displayed during checkout before you confirm your order.',
+        'suggestions' => ['do you have delivery fees', 'is there a minimum order amount', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'what are your support hours',
+        'answer' => 'Our customer support team is available 24/7 to assist you with any issues. You can reach us through the chat feature on our website, by email, or through the "Help" section in your account.',
+        'suggestions' => ['how do i contact customer support', 'can i speak to a human representative', 'how do i report an issue with my order']
+    ],
+    [
+        'question' => 'how do i report an issue with my order',
+        'answer' => 'To report an issue with your order, go to "My Orders" in your account, select the relevant order, and click on "Report Issue." Provide details about the problem, and our customer support team will assist you.',
+        'suggestions' => ['how do i contact customer support', 'what happens if my order is missing items', 'can i get a refund for a problematic order']
+    ],
+    [
+        'question' => 'can i speak to a human representative',
+        'answer' => 'Yes, you can speak to a human representative by contacting our customer support team through the chat feature on our website. During peak hours, there might be a short wait time.',
+        'suggestions' => ['what are your support hours', 'how do i contact customer support', 'how do i report an issue with my order']
+    ],
+    [
+        'question' => 'what happens if my order is missing items',
+        'answer' => 'If your order is missing items, please report the issue through the "Help" section in your account. Select your order and describe the missing items. Our customer support team will investigate and may offer a refund or replacement.',
+        'suggestions' => ['how do i report an issue with my order', 'can i get a refund for a problematic order', 'how do i contact customer support']
+    ],
+    [
+        'question' => 'how long does it take to process a refund',
+        'answer' => 'Refunds typically process within 3-5 business days, depending on your payment method and bank. Credit card refunds may take up to 10 business days to appear on your statement.',
+        'suggestions' => ['what is your refund policy', 'how do i request a refund', 'what happens if i dispute a charge']
+    ],
+    [
+        'question' => 'what happens if i dispute a charge',
+        'answer' => 'If you believe a charge is incorrect, please contact our customer support team first. If we can\'t resolve the issue, you can dispute the charge with your bank or credit card company. We\'ll cooperate with any investigation.',
+        'suggestions' => ['how do i contact customer support', 'what is your refund policy', 'how do i request a refund']
+    ],
+    [
+        'question' => 'how do i contact the restaurant',
+        'answer' => 'You can contact a restaurant through our platform by going to their page and clicking on the "Contact" button. This will open a chat window where you can send a message to the restaurant.',
+        'suggestions' => ['can i modify my order instead of canceling', 'what if the restaurant can\'t modify my order', 'how do i leave a review for a restaurant']
+    ],
+    [
+        'question' => 'what if the restaurant can\'t modify my order',
+        'answer' => 'If the restaurant can\'t modify your order, you may need to cancel it and place a new order with the desired changes. If you\'ve already paid, you\'ll receive a refund for the canceled order.',
+        'suggestions' => ['how do i cancel my order', 'what is your refund policy', 'how do i contact the restaurant']
+    ],
+    [
+        'question' => 'how do i leave a review for a restaurant',
+        'answer' => 'After receiving your order, you can leave a review by going to "My Orders" in your account, finding the completed order, and clicking on "Leave Review." You can rate the restaurant and provide feedback about your experience.',
+        'suggestions' => ['can i edit my review after submitting it', 'how do restaurant ratings work', 'what happens if i report an issue with my order']
+    ],
+    [
+        'question' => 'can i edit my review after submitting it',
+        'answer' => 'Yes, you can edit your review within 7 days of submitting it. Go to "My Reviews" in your account, find the review you want to edit, and click on "Edit."',
+        'suggestions' => ['how do i leave a review for a restaurant', 'how do restaurant ratings work', 'can i delete my review']
+    ],
+    [
+        'question' => 'how do restaurant ratings work',
+        'answer' => 'Restaurant ratings are based on customer reviews and feedback. The overall rating is calculated as an average of all reviews. Ratings consider factors like food quality, delivery time, and customer service.',
+        'suggestions' => ['how do i leave a review for a restaurant', 'can i edit my review after submitting it', 'what happens if i report an issue with my order']
+    ],
+    [
+        'question' => 'can i delete my review',
+        'answer' => 'Yes, you can delete your review by going to "My Reviews" in your account, finding the review you want to delete, and clicking on "Delete." Please note that deleted reviews cannot be recovered.',
+        'suggestions' => ['how do i leave a review for a restaurant', 'can i edit my review after submitting it', 'how do restaurant ratings work']
+    ],
+    [
+        'question' => 'how do i redeem my loyalty points',
+        'answer' => 'To redeem your loyalty points, go to the checkout page when placing an order. You\'ll see an option to apply your points for a discount. Select the amount of points you want to redeem, and the discount will be applied to your order total.',
+        'suggestions' => ['how many points do i earn per order', 'are there any special loyalty promotions', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'how many points do i earn per order',
+        'answer' => 'You earn 1 point for every $1 spent on orders. Some special promotions may offer bonus points for specific restaurants or during certain periods.',
+        'suggestions' => ['how do i redeem my loyalty points', 'are there any special loyalty promotions', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'are there any special loyalty promotions',
+        'answer' => 'Yes, we occasionally run special promotions where you can earn bonus loyalty points. Check the "Promotions" section on our homepage or your account dashboard for current loyalty promotions.',
+        'suggestions' => ['how do i redeem my loyalty points', 'how many points do i earn per order', 'do you have a loyalty program']
+    ],
+    [
+        'question' => 'what types of restaurants do you have',
+        'answer' => 'We have a wide variety of restaurants including local eateries, cafes, fast food, fine dining, and international cuisine. You can browse restaurants by cuisine type, rating, or location.',
+        'suggestions' => ['do you have vegetarian restaurants', 'what cuisines are available', 'how do i find restaurants near me']
+    ],
+    [
+        'question' => 'do you have vegetarian restaurants',
+        'answer' => 'Yes, we have many vegetarian restaurants. You can filter restaurants by dietary preferences to find vegetarian options. Many non-vegetarian restaurants also offer vegetarian dishes.',
+        'suggestions' => ['do you have vegan options', 'what types of restaurants do you have', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'do you have vegan options',
+        'answer' => 'Yes, we have restaurants that specialize in vegan cuisine. You can filter restaurants by dietary preferences to find vegan options. Many restaurants also offer vegan dishes on their regular menu.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have gluten-free options', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'do you have gluten-free options',
+        'answer' => 'Yes, we have restaurants that offer gluten-free options. You can filter restaurants by dietary preferences to find gluten-free options. Many restaurants clearly mark gluten-free items on their menus.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have vegan options', 'how do i find restaurants with specific dietary options']
+    ],
+    [
+        'question' => 'what cuisines are available',
+        'answer' => 'We offer a wide range of cuisines including Italian, Mexican, Chinese, Indian, Thai, Japanese, American, Mediterranean, and more. You can browse restaurants by cuisine type to find what you\'re looking for.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants by cuisine', 'do you have international restaurants']
+    ],
+    [
+        'question' => 'how do i find restaurants near me',
+        'answer' => 'You can find restaurants near you by using the location filter on our homepage. Enter your address or allow us to use your current location, and we\'ll show you restaurants in your area.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i filter restaurants by rating', 'can i save my favorite restaurants']
+    ],
+    [
+        'question' => 'how do i find restaurants with specific dietary options',
+        'answer' => 'You can filter restaurants by dietary preferences such as vegetarian, vegan, gluten-free, and more. Use the filter options on our homepage to find restaurants that meet your dietary requirements.',
+        'suggestions' => ['do you have vegetarian restaurants', 'do you have vegan options', 'do you have gluten-free options']
+    ],
+    [
+        'question' => 'how do i find restaurants by cuisine',
+        'answer' => 'You can browse restaurants by cuisine type using the filter options on our homepage. Select your preferred cuisine, and we\'ll show you restaurants that specialize in that type of food.',
+        'suggestions' => ['what cuisines are available', 'how do i find restaurants near me', 'how do i filter restaurants by rating']
+    ],
+    [
+        'question' => 'do you have international restaurants',
+        'answer' => 'Yes, we have many international restaurants offering cuisines from around the world. You can browse restaurants by cuisine type to find international options.',
+        'suggestions' => ['what cuisines are available', 'how do i find restaurants by cuisine', 'what types of restaurants do you have']
+    ],
+    [
+        'question' => 'how do i filter restaurants by rating',
+        'answer' => 'You can filter restaurants by rating using the filter options on our homepage. Select your preferred minimum rating (e.g., 4 stars and above), and we\'ll show you restaurants that meet that criteria.',
+        'suggestions' => ['how do restaurant ratings work', 'how do i find restaurants near me', 'can i save my favorite restaurants']
+    ],
+    [
+        'question' => 'can i save my favorite restaurants',
+        'answer' => 'Yes, you can save your favorite restaurants by clicking the heart icon on their page. You can view your saved restaurants by going to "My Favorites" in your account dashboard.',
+        'suggestions' => ['how do i find restaurants near me', 'how do i filter restaurants by rating', 'can i get notifications from my favorite restaurants']
+    ],
+    [
+        'question' => 'can i get notifications from my favorite restaurants',
+        'answer' => 'Yes, you can enable notifications for your favorite restaurants to receive updates about new menu items, special offers, and promotions. Go to your account settings and select "Notification Preferences" to manage these settings.',
+        'suggestions' => ['can i save my favorite restaurants', 'how do i find restaurants near me', 'do you offer any discounts']
+    ],
+    [
+        'question' => 'how do i view a restaurant\'s menu',
+        'answer' => 'To view a restaurant\'s menu, go to their page and click on the "Menu" tab. You can browse through different categories and see details, prices, and photos of each dish.',
+        'suggestions' => ['can i see nutritional information for menu items', 'how do i find specific dishes', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'can i see nutritional information for menu items',
+        'answer' => 'Some restaurants provide nutritional information for their menu items. Look for the nutritional info icon next to menu items, or check the restaurant\'s page for a link to their complete nutritional information.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'how do i find specific dishes', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'how do i find specific dishes',
+        'answer' => 'You can search for specific dishes using the search bar on our homepage. Enter the name of the dish you\'re looking for, and we\'ll show you restaurants that offer it.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'can i see nutritional information for menu items', 'can i filter menu items by dietary preferences']
+    ],
+    [
+        'question' => 'can i filter menu items by dietary preferences',
+        'answer' => 'Yes, you can filter menu items by dietary preferences such as vegetarian, vegan, gluten-free, and more. Use the filter options on a restaurant\'s menu page to find items that meet your dietary requirements.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'can i see nutritional information for menu items', 'how do i find specific dishes']
+    ],
+    [
+        'question' => 'do you have any local specialties',
+        'answer' => 'Yes, we feature many local specialties from restaurants in your area. You can find these by browsing the "Local Favorites" section on our homepage or by filtering restaurants by cuisine type.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'what cuisines are available']
+    ],
+    [
+        'question' => 'do you have any seasonal menu items',
+        'answer' => 'Yes, many restaurants on our platform offer seasonal menu items. These are typically highlighted on the restaurant\'s page or in the "Special Offers" section. You can also filter restaurants by "Seasonal Specials" to find these items.',
+        'suggestions' => ['how do i view a restaurant\'s menu', 'how do i find specific dishes', 'do you have any local specialties']
+    ],
+    [
+        'question' => 'do you have any healthy food options',
+        'answer' => 'Yes, we have many restaurants that offer healthy food options. You can filter restaurants by dietary preferences such as "Healthy," "Low-Calorie," or "Organic" to find these options.',
+        'suggestions' => ['how do i find restaurants with specific dietary options', 'can i see nutritional information for menu items', 'do you have vegetarian restaurants']
+    ],
+    [
+        'question' => 'do you have any kid-friendly restaurants',
+        'answer' => 'Yes, we have many kid-friendly restaurants. You can filter restaurants by "Kid-Friendly" to find options that offer children\'s menus, high chairs, and other amenities for families.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any family restaurants']
+    ],
+    [
+        'question' => 'do you have any family restaurants',
+        'answer' => 'Yes, we have many family restaurants that offer a welcoming atmosphere and menu options for all ages. You can filter restaurants by "Family-Friendly" to find these options.',
+        'suggestions' => ['do you have any kid-friendly restaurants', 'what types of restaurants do you have', 'how do i find restaurants near me']
+    ],
+    [
+        'question' => 'do you have any romantic restaurants',
+        'answer' => 'Yes, we have many romantic restaurants perfect for date nights or special occasions. You can filter restaurants by "Romantic" to find options with a cozy atmosphere and suitable menu.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants by cuisine', 'do you have any fine dining restaurants']
+    ],
+    [
+        'question' => 'do you have any fine dining restaurants',
+        'answer' => 'Yes, we have many fine dining restaurants offering an upscale dining experience. You can filter restaurants by "Fine Dining" to find these options.',
+        'suggestions' => ['do you have any romantic restaurants', 'what types of restaurants do you have', 'how do i find restaurants by cuisine']
+    ],
+    [
+        'question' => 'do you have any casual dining restaurants',
+        'answer' => 'Yes, we have many casual dining restaurants offering a relaxed atmosphere and diverse menu options. You can filter restaurants by "Casual Dining" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any family restaurants']
+    ],
+    [
+        'question' => 'do you have any cafes',
+        'answer' => 'Yes, we have many cafes offering coffee, tea, pastries, and light meals. You can filter restaurants by "Cafe" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find cafes near me', 'do you have any breakfast restaurants']
+    ],
+    [
+        'question' => 'how do i find cafes near me',
+        'answer' => 'You can find cafes near you by using the location filter on our homepage and selecting "Cafe" as the restaurant type. Enter your address or allow us to use your current location, and we\'ll show you cafes in your area.',
+        'suggestions' => ['do you have any cafes', 'how do i find restaurants near me', 'do you have any breakfast restaurants']
+    ],
+    [
+        'question' => 'do you have any breakfast restaurants',
+        'answer' => 'Yes, we have many restaurants that serve breakfast. You can filter restaurants by "Breakfast" to find these options.',
+        'suggestions' => ['do you have any cafes', 'how do i find restaurants near me', 'what types of restaurants do you have']
+    ],
+    [
+        'question' => 'do you have any dessert places',
+        'answer' => 'Yes, we have many dessert places offering ice cream, cakes, pastries, and other sweet treats. You can filter restaurants by "Dessert" to find these options.',
+        'suggestions' => ['what types of restaurants do you have', 'how do i find restaurants near me', 'do you have any cafes']
+    ],
+    [
+        'question' => 'do you have any food trucks',
+        'answer' => 'Yes, we feature many food trucks on our platform. You can filter restaurants by "Food Truck" to find these options. Food trucks often have unique menus and can be found at various locations.',
+        'suggestions' => ['how do i find food trucks near me', 'what types of restaurants do you have', 'how do i track a food truck\'s location']
+    ],
+    [
+        'question' => 'how do i find food trucks near me',
+        'answer' => 'You can find food trucks near you by using the location filter on our homepage and selecting "Food Truck" as the restaurant type. Enter your address or allow us to use your current location, and we\'ll show you food trucks in your area.',
+        'suggestions' => ['do you have any food trucks', 'how do i track a food truck\'s location', 'how do i find restaurants near me']
+    ],
+    [
+        'question' => 'how do i track a food truck\'s location',
+        'answer' => 'Some food trucks on our platform offer real-time location tracking. If available, you\'ll see a "Track Location" button on the food truck\'s page. Click on it to see their current location on a map.',
+        'suggestions' => ['do you have any food trucks', 'how do i find food trucks near me', 'how do i place an order from a food truck']
+    ],
+    [
+        'question' => 'how do i place an order from a food truck',
+        'answer' => 'You can place an order from a food truck just like any other restaurant on our platform. Go to the food truck\'s page, browse their menu, add items to your cart, and proceed to checkout. Some food trucks may have specific pickup locations or delivery areas.',
+        'suggestions' => ['do you have any food trucks', 'how do i find food trucks near me', 'how do i track a food truck\'s location']
+    ],
+];
 
-        // Add message to chat
-        function addMessage(message, role) {
-            const chatMessages = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${role}`;
-            
-            // Format the message content
-            let formattedMessage = message
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n\* (.*?)(?=\n|$)/g, '<br>• $1')
-                .replace(/\n/g, '<br>');
-            
-            messageDiv.innerHTML = `<div class="message-content">${formattedMessage}</div>`;
-            chatMessages.insertBefore(messageDiv, document.getElementById('typingIndicator'));
-            scrollToBottom();
-        }
+// Check if the message matches any predefined Q&A
+$response = null;
+$suggestions = [];
+$message = strtolower(trim($message));
 
-        // Handle form submission
-        document.getElementById('chatForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const input = this.querySelector('input[name="message"]');
-            const message = input.value.trim();
-            
-            if (message) {
-                // Add user message to chat
-                addMessage(message, 'user');
-                input.value = '';
-                showTypingIndicator();
-                
-                fetch('chat_api.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message: message })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    hideTypingIndicator();
-                    if (data.response) {
-                        // Add AI response to chat
-                        addMessage(data.response, 'assistant');
-                    }
-                })
-                .catch(error => {
-                    hideTypingIndicator();
-                    console.error('Error:', error);
-                    addMessage('Sorry, there was an error processing your request. Please try again.', 'assistant');
-                });
-            }
-        });
+foreach ($qa_pairs as $qa) {
+    if (strpos($message, $qa['question']) !== false) {
+        $response = $qa['answer'];
+        $suggestions = $qa['suggestions'];
+        break;
+    }
+}
 
-        // Scroll to bottom on page load
-        scrollToBottom();
-    </script>
-</body>
-</html> 
+// If no predefined answer found, generate a generic response
+if (!$response) {
+    if (strpos($message, 'hello') !== false || strpos($message, 'hi') !== false) {
+        $response = 'Hello! How can I help you today?';
+        $suggestions = [
+            'What is LocalCarving?',
+            'How do I place an order?',
+            'How do I find restaurants near me?'
+        ];
+    } elseif (strpos($message, 'thank') !== false) {
+        $response = 'You\'re welcome! Is there anything else I can help you with?';
+        $suggestions = [
+            'How do I place an order?',
+            'How do I track my order?',
+            'How do I leave a review?'
+        ];
+    } elseif (strpos($message, 'bye') !== false || strpos($message, 'goodbye') !== false) {
+        $response = 'Goodbye! Have a great day!';
+        $suggestions = [];
+    } else {
+        // Return error to trigger AI fallback
+        http_response_code(404);
+        echo json_encode(['error' => 'No predefined answer found']);
+        exit;
+    }
+}
+
+// Return the response with suggestions
+header('Content-Type: application/json');
+echo json_encode([
+    'response' => $response,
+    'suggestions' => $suggestions
+]);
