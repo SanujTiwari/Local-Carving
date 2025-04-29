@@ -2,63 +2,136 @@
 require_once '../includes/header.php';
 require_once '../includes/db.php';
 require_once '../includes/session.php';
-$base_url = "http://" . $_SERVER['HTTP_HOST'] . "/localcarving";
 
-// Restrict access to owners only
-requireOwner();
+// Restrict access to normal users only
+requireUser();
 
-// Get owner's restaurants
-$stmt = $pdo->prepare("SELECT * FROM restaurants WHERE owner_id = ?");
+// Fetch user's favorite restaurants
+$stmt = $pdo->prepare("
+    SELECT r.*, f.created_at as favorited_at 
+    FROM restaurants r 
+    JOIN favorites f ON r.id = f.restaurant_id 
+    WHERE f.user_id = ? 
+    ORDER BY f.created_at DESC
+");
 $stmt->execute([$_SESSION['user_id']]);
-$restaurants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$favorite_restaurants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch user's recent orders
+$stmt = $pdo->prepare("
+    SELECT o.*, r.name as restaurant_name 
+    FROM orders o 
+    JOIN restaurants r ON o.restaurant_id = r.id 
+    WHERE o.user_id = ? 
+    ORDER BY o.created_at DESC 
+    LIMIT 5
+");
+$stmt->execute([$_SESSION['user_id']]);
+$recent_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <div class="container my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>My Restaurants</h2>
-        <a href="add-restaurant.php" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Add New Restaurant
-        </a>
-    </div>
-    
-    <?php if (empty($restaurants)): ?>
-        <div class="alert alert-info">
-            You haven't added any restaurants yet. <a href="add-restaurant.php">Add your first restaurant</a>
-        </div>
-    <?php else: ?>
-        <div class="row">
-            <?php foreach ($restaurants as $restaurant): ?>
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <?php if ($restaurant['logo_path']): ?>
-                    <img src="<?php echo $base_url; ?>/<?php echo htmlspecialchars($restaurant['logo_path']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($restaurant['name']); ?>">
-                    <?php else: ?>
-                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                        <i class="bi bi-shop text-muted" style="font-size: 4rem;"></i>
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="mb-4">Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?>!</h2>
+            
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">My Orders</h5>
+                            <p class="card-text">View and track your orders</p>
+                            <a href="orders.php" class="btn btn-primary">View Orders</a>
+                        </div>
                     </div>
-                    <?php endif; ?>
-                    
-                    <div class="card-body">
-                        <h5 class="card-title"><?php echo htmlspecialchars($restaurant['name']); ?></h5>
-                        <p class="card-text text-muted">
-                            <i class="bi bi-geo-alt"></i> <?php echo htmlspecialchars($restaurant['city']); ?>
-                        </p>
-                        <p class="card-text"><?php echo htmlspecialchars($restaurant['description']); ?></p>
-                        
-                        <div class="d-flex justify-content-between">
-                            <a href="edit-restaurant.php?id=<?php echo $restaurant['id']; ?>" class="btn btn-outline-primary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                            <a href="add-menu.php?res_id=<?php echo $restaurant['id']; ?>" class="btn btn-outline-success">
-                                <i class="bi bi-list"></i> Manage Menu
-                            </a>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Favorites</h5>
+                            <p class="card-text">Manage your favorite restaurants</p>
+                            <a href="favorites.php" class="btn btn-primary">View Favorites</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">My Reviews</h5>
+                            <p class="card-text">View and manage your reviews</p>
+                            <a href="reviews.php" class="btn btn-primary">View Reviews</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Browse Restaurants</h5>
+                            <p class="card-text">Discover new restaurants</p>
+                            <a href="../restaurants.php" class="btn btn-primary">Browse</a>
                         </div>
                     </div>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
-    <?php endif; ?>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h4 class="m-0">Favorite Restaurants</h4>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($favorite_restaurants)): ?>
+                        <p class="text-muted">You haven't favorited any restaurants yet.</p>
+                    <?php else: ?>
+                        <div class="list-group">
+                            <?php foreach ($favorite_restaurants as $restaurant): ?>
+                                <a href="../restaurant.php?id=<?php echo $restaurant['id']; ?>" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1"><?php echo htmlspecialchars($restaurant['name']); ?></h5>
+                                        <small class="text-muted"><?php echo htmlspecialchars($restaurant['category']); ?></small>
+                                    </div>
+                                    <p class="mb-1"><?php echo htmlspecialchars($restaurant['address']); ?></p>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h4 class="m-0">Recent Orders</h4>
+                </div>
+                <div class="card-body">
+                    <?php if (empty($recent_orders)): ?>
+                        <p class="text-muted">You haven't placed any orders yet.</p>
+                    <?php else: ?>
+                        <div class="list-group">
+                            <?php foreach ($recent_orders as $order): ?>
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1"><?php echo htmlspecialchars($order['restaurant_name']); ?></h5>
+                                        <small class="text-muted"><?php echo date('M d, Y', strtotime($order['created_at'])); ?></small>
+                                    </div>
+                                    <p class="mb-1">Order #<?php echo $order['id']; ?></p>
+                                    <p class="mb-1">Total: $<?php echo number_format($order['total_amount'], 2); ?></p>
+                                    <small class="text-muted">Status: <?php echo ucfirst($order['status']); ?></small>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php require_once '../includes/footer.php'; ?> 
